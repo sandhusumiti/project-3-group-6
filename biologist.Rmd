@@ -1,0 +1,114 @@
+---
+title: "Biologist Role"
+author: "Simran"
+date: "4/8/2020"
+output: word_document
+---
+
+Filter deseq results based on abs(log2foldchange > 1 and pval < 0.05)
+```{r echo = FALSE, message = FALSE}
+
+filter_deseq <- function(filename) {
+  data <- read.csv(paste0("analysis/deseq_files/", filename))
+  data <- data[data$padj < 0.05,]
+  data <- data[abs(data$log2FoldChange) > 1,]
+  data <- data[!is.na(data$X),]
+  write.csv(data, paste0("analysis/deseq_files/filtered_", filename))
+}
+
+filter_deseq("deseq_mode1.csv")
+filter_deseq("deseq_mode2.csv")
+filter_deseq("deseq_mode3.csv")
+
+
+
+# try taking top 500 in each log2fold change direction
+# use gsea preranked
+# give a list of genes and fold changes
+
+```
+
+
+
+```{r echo = FALSE, message = FALSE}
+#install.packages("gplots")
+library(gplots)
+
+norm1 <- read.csv("analysis/norm_counts/deseq_norm_counts_mode1.csv")
+rownames(norm1) <- norm1$X
+norm1 <- norm1[-1]
+heatmap(as.matrix(norm1))
+
+norm2 <- read.csv("analysis/norm_counts/deseq_norm_counts_mode2.csv")
+rownames(norm2) <- norm2$X
+norm2 <- norm2[-1]
+heatmap(as.matrix(norm2))
+
+norm3 <- read.csv("analysis/norm_counts/deseq_norm_counts_mode3.csv")
+rownames(norm3) <- norm3$X
+norm3 <- norm3[-1]
+heatmap(as.matrix(norm3))
+
+combined <- cbind(norm1, norm2, norm3)
+
+cols <- which(names(combined) == 'SRR1178030')
+names(combined)[cols] <- paste0('SRR1178030_', seq_along(cols))
+
+cols <- which(names(combined) == 'SRR1178040')
+names(combined)[cols] <- paste0('SRR1178040_', seq_along(cols))
+
+cols <- which(names(combined) == 'SRR1178056')
+names(combined)[cols] <- paste0('SRR1178056_', seq_along(cols))
+
+data <- data.frame(".3_METHYLCHOLANTHRENE_1" = combined$SRR1177997,
+                   ".3_METHYLCHOLANTHRENE_2" = combined$SRR1177999,
+                   ".3_METHYLCHOLANTHRENE_3" = combined$SRR1178002,
+                   "FLUCONAZOLE_1" = combined$SRR1178014,
+                   "FLUCONAZOLE_2" = combined$SRR1178021,
+                   "FLUCONAZOLE_3" = combined$SRR1178047,
+                   "PIRINIXIC_ACID_1" = combined$SRR1177963,
+                   "PIRINIXIC_ACID_2" = combined$SRR1178064,
+                   "PIRINIXIC_ACID_3" = combined$SRR1177965,
+                   "CONTROL_CMC_1" =  mean(cbind(combined$SRR1178030_1, combined$SRR1178030_2)),
+                   "CONTROL_CMC_2" = mean(cbind(combined$SRR1178040_1, combined$SRR1178040_2)),
+                   "CONTROL_CMC_3" = mean(cbind(combined$SRR1178056_1, combined$SRR1178056_2))
+)
+
+heatmap(t(data), keep.dendro = FALSE, Rowv = NA, scale = 'col')
+
+```
+
+
+
+```{r echo = FALSE, message = FALSE}
+library(knitr)
+library(scales)
+
+split_name <- function(str) {
+  res <- strsplit(as.character(str), ':')
+  res <- res[[1]][2]
+  return(res)
+}
+
+make_pretty_table <- function(path_file) {
+  path <- read.csv(paste0("analysis/deseq_files/", path_file), sep = '\t')
+  path <- path[order(path$FDR),]
+  path <- path[path$FDR < 0.05,]
+  path$Pathway <- lapply(path$Term, split_name)
+  path$'P-Val' <- lapply(path$PValue, scientific)
+  path$FDR <- lapply(path$FDR, scientific)
+  return(path[,c(14, 15, 13)])
+}
+
+
+kable(make_pretty_table("pathways_mode1.csv"))
+kable(make_pretty_table("pathways_mode2.csv"))
+kable(make_pretty_table("pathways_mode3.csv"))
+
+
+```
+
+
+
+
+
